@@ -1,0 +1,13 @@
+# 便携包依赖（已移除 faster-whisper —— 音频转写功能，体积大，按需另装）
+# 如需恢复「声音」维度的音频转写：在 install 后运行
+#   runtime\python\python.exe -m pip install faster-whisper
+streamlit>=1.45.0
+anthropic>=0.52.0
+google-genai>=1.14.0
+openai>=1.70.0
+httpx>=0.28.0
+requests>=2.32.0
+python-dotenv>=1.1.0
+pandas>=2.2.0
+plotly>=6.0.0
+openpyxl>=3.1.0

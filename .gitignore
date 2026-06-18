@@ -1,0 +1,29 @@
+# secrets / config
+config.json
+.env
+
+# byte-compiled
+__pycache__/
+*.py[cod]
+
+# data & cache
+data/
+*.mp4
+*.mp3
+*.wav
+
+# distribution artifacts
+_dist/
+build/
+*.spec
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# logs
+*.log
+_st.log
+

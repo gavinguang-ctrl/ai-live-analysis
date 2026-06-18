@@ -1,0 +1,13 @@
+{
+  "GOOGLE_API_KEY": "",
+  "GOOGLE_PROXY_KEY": "",
+  "GOOGLE_PROXY_URL": "https://api.vectorengine.ai",
+  "ANTHROPIC_API_KEY": "",
+  "ANTHROPIC_PROXY_URL": "https://www.fucheers.top",
+  "OPENAI_API_KEY": "",
+  "OPENAI_PROXY_URL": "https://www.fucheers.top",
+  "ZMENG_AUTH_TOKEN": "",
+  "ZMENG_COOKIE": "",
+  "DEFAULT_REASONER": "anthropic/claude-opus-4-8",
+  "DEFAULT_VISION": "google（代理）/gemini-3.1-pro-preview"
+}
