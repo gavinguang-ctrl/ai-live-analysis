@@ -1,20 +1,23 @@
 @echo off
-chcp 65001 >nul
-title AI 直播复盘分析 — 安装环境
+title AI Live Analysis - Install
 echo.
 echo ============================================================
-echo    AI 直播复盘分析 — 首次安装
-echo    将下载便携版 Python + 依赖 + ffmpeg（全部装在本文件夹）
-echo    需要联网；安装完成后即可离线使用（API 调用除外）
+echo    AI Live Analysis - First-time setup
+echo.
+echo    Downloads portable Python + dependencies + ffmpeg.
+echo    Internet required. Everything installs into THIS folder.
 echo ============================================================
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0packaging\setup.ps1"
 if errorlevel 1 (
     echo.
-    echo [安装失败] 请把上面的红色错误信息截图反馈。常见原因：网络无法访问 GitHub。
+    echo [FAILED] Setup did not finish. Screenshot the error above.
+    echo Most common cause: cannot reach GitHub. Turn on a proxy/VPN and retry.
     echo.
     pause
     exit /b 1
 )
+echo.
+echo Done. Now double-click  qidong.bat  (the launcher) to start.
 echo.
 pause

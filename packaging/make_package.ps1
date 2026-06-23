@@ -46,7 +46,7 @@ foreach ($d in @("data\rooms","data\analyses","data\videos")) {
 New-Item -ItemType Directory -Force -Path "$stage\packaging" | Out-Null
 Copy-Item (Join-Path $pkgDir "setup.ps1")  -Destination "$stage\packaging\setup.ps1" -Force
 Copy-Item (Join-Path $pkgDir "install.bat") -Destination "$stage\install.bat" -Force
-Copy-Item (Join-Path $pkgDir "启动.bat")    -Destination "$stage\启动.bat" -Force
+Copy-Item (Join-Path $pkgDir "qidong.bat")  -Destination "$stage\qidong.bat" -Force
 Copy-Item (Join-Path $pkgDir "requirements.portable.txt") -Destination "$stage\requirements.txt" -Force
 if (Test-Path (Join-Path $pkgDir "部署说明.md")) {
     Copy-Item (Join-Path $pkgDir "部署说明.md") -Destination "$stage\部署说明.md" -Force
@@ -59,4 +59,4 @@ Compress-Archive -Path $stage -DestinationPath $zipOut -Force
 Write-Host ""
 Write-Host "完成！分发这个文件：" -ForegroundColor Green
 Write-Host "  $zipOut"
-Write-Host "目标电脑：解压 -> 双击 install.bat（联网，一次）-> 双击 启动.bat" -ForegroundColor Green
+Write-Host "目标电脑：解压 -> 双击 install.bat（联网，一次）-> 双击 qidong.bat" -ForegroundColor Green

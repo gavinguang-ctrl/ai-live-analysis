@@ -1,7 +1,6 @@
-﻿# setup.ps1 — 在目标电脑上一键安装运行环境（便携版 Python + 依赖 + ffmpeg）
-# 不需要管理员权限，不污染系统，全部装在本文件夹内。
+# setup.ps1 - one-shot installer (portable Python + deps + ffmpeg), all inside this folder.
 $ErrorActionPreference = "Stop"
-# 脚本在 packaging\ 下，包根目录是其上一级（runtime/ffmpeg/requirements 都装在包根）
+# script sits in packaging\ ; package root is one level up (runtime/ffmpeg/requirements live there)
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $root = Split-Path -Parent $scriptDir
 Set-Location $root
@@ -12,17 +11,17 @@ $PY_EXE     = Join-Path $PY_DIR "python.exe"
 $FF_DIR     = Join-Path $root "ffmpeg\bin"
 $FF_EXE     = Join-Path $FF_DIR "ffmpeg.exe"
 $REQ        = Join-Path $root "requirements.txt"
-# 国内 PyPI 镜像（清华），大幅加速依赖下载；如在海外可改成 https://pypi.org/simple
+# Tsinghua PyPI mirror speeds up downloads in China; outside CN switch to https://pypi.org/simple
 $PIP_INDEX  = "https://pypi.tuna.tsinghua.edu.cn/simple"
 
 function Info($m) { Write-Host "  $m" -ForegroundColor Cyan }
 function Ok($m)   { Write-Host "  $m" -ForegroundColor Green }
 
-# ===== 1/3 便携版 Python =====
+# ===== 1/3 portable Python =====
 if (Test-Path $PY_EXE) {
-    Ok "[1/3] Python 已存在，跳过。"
+    Ok "[1/3] Python already present, skipping."
 } else {
-    Info "[1/3] 下载便携版 Python（约 30MB，来自 GitHub，国内可能较慢）..."
+    Info "[1/3] Downloading portable Python (~30MB from GitHub)..."
     $api = "https://api.github.com/repos/astral-sh/python-build-standalone/releases/latest"
     $rel = Invoke-RestMethod -Uri $api -Headers @{ "User-Agent" = "ai-analysis-setup" }
     $asset = $null
@@ -32,29 +31,29 @@ if (Test-Path $PY_EXE) {
         } | Select-Object -First 1
         if ($asset) { break }
     }
-    if (-not $asset) { throw "未找到合适的便携版 Python 资源。" }
+    if (-not $asset) { throw "No suitable portable Python asset found." }
     $tgz = Join-Path $root "_python.tar.gz"
     Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $tgz -UseBasicParsing
     New-Item -ItemType Directory -Force -Path (Join-Path $root "runtime") | Out-Null
-    # Windows 10+ 自带 tar；install_only 包解压后顶层为 python\
+    # Windows 10+ ships tar; install_only archive extracts to top-level python\
     tar -xf $tgz -C (Join-Path $root "runtime")
     Remove-Item $tgz -Force
-    if (-not (Test-Path $PY_EXE)) { throw "Python 解压后未找到 python.exe。" }
-    Ok "      Python 安装完成。"
+    if (-not (Test-Path $PY_EXE)) { throw "python.exe not found after extraction." }
+    Ok "      Python installed."
 }
 
-# ===== 2/3 Python 依赖 =====
-Info "[2/3] 安装 Python 依赖（用清华镜像加速）..."
+# ===== 2/3 Python dependencies =====
+Info "[2/3] Installing Python dependencies (via mirror)..."
 & $PY_EXE -m pip install --upgrade pip -i $PIP_INDEX --no-warn-script-location
 & $PY_EXE -m pip install -r $REQ -i $PIP_INDEX --no-warn-script-location
-if ($LASTEXITCODE -ne 0) { throw "依赖安装失败（错误码 $LASTEXITCODE）。" }
-Ok "      依赖安装完成。"
+if ($LASTEXITCODE -ne 0) { throw "Dependency install failed (exit $LASTEXITCODE)." }
+Ok "      Dependencies installed."
 
-# ===== 3/3 ffmpeg（录像抽帧用）=====
+# ===== 3/3 ffmpeg (video frame extraction) =====
 if (Test-Path $FF_EXE) {
-    Ok "[3/3] ffmpeg 已存在，跳过。"
+    Ok "[3/3] ffmpeg already present, skipping."
 } else {
-    Info "[3/3] 下载 ffmpeg（录像抽帧用，约 90MB）..."
+    Info "[3/3] Downloading ffmpeg (~90MB)..."
     $zip = Join-Path $root "_ffmpeg.zip"
     $tmp = Join-Path $root "_ffmpeg_tmp"
     Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $zip -UseBasicParsing
@@ -67,11 +66,11 @@ if (Test-Path $FF_EXE) {
     }
     Remove-Item $zip -Force
     Remove-Item $tmp -Recurse -Force
-    if (-not (Test-Path $FF_EXE)) { throw "ffmpeg 解压后未找到 ffmpeg.exe。" }
-    Ok "      ffmpeg 安装完成。"
+    if (-not (Test-Path $FF_EXE)) { throw "ffmpeg.exe not found after extraction." }
+    Ok "      ffmpeg installed."
 }
 
-# 写入安装标记
+# write install marker
 "installed $(Get-Date -Format o)" | Out-File -FilePath (Join-Path $root ".installed") -Encoding utf8
 Write-Host ""
-Ok "全部安装完成！双击「启动.bat」即可使用。"
+Ok "All done! Double-click  qidong.bat  to start."
