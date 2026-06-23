@@ -27,6 +27,8 @@ Copy-Item (Join-Path $src "pages") -Destination "$stage\app\pages" -Recurse -For
 if (Test-Path (Join-Path $src "assets")) {
     Copy-Item (Join-Path $src "assets") -Destination "$stage\app\assets" -Recurse -Force
 }
+# 端口探测辅助脚本（qidong.bat 调用，放到 app/ 下）
+Copy-Item (Join-Path $pkgDir "find_port.py") -Destination "$stage\app\find_port.py" -Force
 
 # ---- 2. config.json：带上你的密钥一起打包（按需求「配置一起打包」）----
 $cfg = Join-Path $src "config.json"
