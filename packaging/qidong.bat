@@ -15,9 +15,11 @@ if not exist "%PY%" (
 
 set "PATH=%FFBIN%;%PATH%"
 
-rem --- find first free port starting at 8501 (auto-skip if occupied) ---
+rem --- pre-launch: write streamlit credentials (skip email prompt) + find free port ---
 set "PORT=8501"
-for /f "usebackq delims=" %%p in (`"%PY%" "%~dp0app\find_port.py"`) do set "PORT=%%p"
+del "%~dp0app\_port.txt" >nul 2>&1
+"%PY%" "%~dp0app\find_port.py" >nul 2>&1
+if exist "%~dp0app\_port.txt" set /p PORT=<"%~dp0app\_port.txt"
 
 echo Starting AI Live Analysis...
 echo Browser will open at http://localhost:%PORT%
