@@ -13,10 +13,11 @@ from analysis_engine import (_kpi_block, _funnel_block, _gpm_block, _detail_bloc
 from prompts import SYNTH_SYSTEM, SYNTH_USER_TMPL, fmt_val
 
 
-def _benchmark_block(bench: dict) -> str:
+def _benchmark_block(bench: dict, multi: bool = False) -> str:
     if not bench:
         return "(无可用基准场)"
-    return (f"- 时间: {bench.get('_open_time')} · 时长 {bench.get('_duration')} · 综合分 {bench.get('_score')}\n"
+    host_tag = f"【主播 {bench.get('_host')}】" if multi and bench.get("_host") else ""
+    return (f"- {host_tag}时间: {bench.get('_open_time')} · 时长 {bench.get('_duration')} · 综合分 {bench.get('_score')}\n"
             f"- GMV(USD): ${bench.get('gmv_usd',0):,.0f} · GPM: {bench.get('gpm',0):.1f} · "
             f"下单率: {bench.get('order_rate',0)*100:.2f}% · CTR: {bench.get('ctr',0)*100:.2f}% · "
             f"停留: {bench.get('dwell_time',0):.0f}s · ROI: {bench.get('roi',0):.1f}")
@@ -76,21 +77,50 @@ def _script_block(script: dict) -> str:
             f"- 改写建议: " + "；".join(script.get("rewrite_suggestions", [])[:3]))
 
 
-def auto_analyze(host: str, granularity: str = "week",
+def _host_compare_block(rooms: list[dict], host_list: list[str]) -> str:
+    """多主播合并分析时，生成各主播 KPI 横向对比块 + 分析引导。
+    单主播返回空串（不影响原有单主播复盘）。"""
+    if len(host_list) <= 1:
+        return ""
+    from aggregate import per_host_summary
+    per = per_host_summary(rooms)
+    lines = [
+        "## 👥 多主播合并分析（同一产品 / 货盘）",
+        f"本次合并了 **{len(per)}** 个主播共 {len(rooms)} 场，针对同一产品。各主播表现横向对比（按总GMV降序）：",
+        "",
+        "| 主播 | 场次 | 总GMV(USD) | 整体GPM(USD) | 平均CTR | 平均停留 | 平均下单率 | 平均ROI |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for p in per:
+        lines.append(
+            f"| {p['host']} | {p['session_count']} | ${p['total_gmv_usd']:,.0f} | "
+            f"${p['gpm_usd_overall']:.2f} | {p['avg_ctr']*100:.2f}% | {p['avg_dwell']:.0f}s | "
+            f"{p['avg_order_rate']*100:.2f}% | {p['avg_roi']:.2f} |"
+        )
+    lines += [
+        "",
+        "分析这些主播时请额外回答：**同一产品下哪个主播跑得最好、差异主因是什么（话术/时段/投流/数字人调校），"
+        "表现弱的主播该向最优主播学什么、资源/排期是否该向高效主播倾斜。**",
+    ]
+    return "\n".join(lines)
+
+
+def auto_analyze(host, granularity: str = "week",
                  deep_video: bool = True, deep_insight: bool = True,
                  deep_script: bool = True, on_progress=None) -> dict:
-    """抓取后自动综合复盘。
+    """抓取后自动综合复盘。支持单主播(str)或多主播合并(list[str]，如同一产品多主播)。
 
     流程：
-      1. 载入该主播全部场次
+      1. 载入主播(们)全部场次，合并为一个场次池
       2. 选历史最佳场(benchmark) + 回归差距
       3. 时间维度(最佳开播时段)
       4. 深度分析：最佳场脚本 + 最近场录像 + 最近场数据洞察时间线
-      5. Opus 4.8 综合所有维度 → 复盘 + TODO（含开播/关播时机）
-    返回 {markdown, benchmark, regression, time_slots, video, insight, decay, kpis}。
+      5. Opus 4.8 综合所有维度 → 复盘 + TODO（多主播时含主播横向对比）
+    返回 {markdown, hosts, per_host, benchmark, regression, time_slots, video, insight, decay, kpis}。
     """
     from llm import get_reasoner
     from zmeng_api import fetch_task_content, fetch_live_screenshots
+    from aggregate import per_host_summary
     import video_analyze
     import insight_analyze
 
@@ -98,7 +128,13 @@ def auto_analyze(host: str, granularity: str = "week",
         if on_progress:
             on_progress(m)
 
-    rooms = store.load_host_rooms(host)
+    # 规范化为主播列表，兼容旧的单主播 str 调用
+    host_list = [host] if isinstance(host, str) else [h for h in host if h]
+    host_label = store.group_label(host_list)
+    multi = len(host_list) > 1
+
+    rooms = (store.load_hosts_rooms(host_list) if multi
+             else store.load_host_rooms(host_list[0] if host_list else ""))
     if not rooms:
         return {"error": "无场次数据"}
 
@@ -157,12 +193,15 @@ def auto_analyze(host: str, granularity: str = "week",
     series = aggregate(rooms, granularity)
     period_desc = (f"共{len(rooms)}场，{series[0]['period'] if series else ''} ~ "
                    f"{series[-1]['period'] if series else ''}")
+    if multi:
+        period_desc = f"{len(host_list)}个主播合并 · " + period_desc
     user = SYNTH_USER_TMPL.format(
-        host=host, period_desc=period_desc,
+        host=host_label, period_desc=period_desc,
         kpi_block=_kpi_block(rooms),
+        host_compare_block=_host_compare_block(rooms, host_list),
         funnel_block=_funnel_block(rooms),
         gpm_block=_gpm_block(rooms),
-        benchmark_block=_benchmark_block(bench),
+        benchmark_block=_benchmark_block(bench, multi=multi),
         regression_block=_regression_block(reg, bench),
         time_block=ta.fmt_slot_block(slots),
         timeline_block=_timeline_block(insight_res, decay),
@@ -173,15 +212,17 @@ def auto_analyze(host: str, granularity: str = "week",
     markdown = get_reasoner().generate(user, system=SYNTH_SYSTEM)
 
     result = {
-        "host": host, "granularity": granularity, "period_desc": period_desc,
+        "host": host_label, "hosts": host_list, "multi": multi,
+        "per_host": per_host_summary(rooms) if multi else None,
+        "granularity": granularity, "period_desc": period_desc,
         "markdown": markdown, "kpis": summary_kpis(rooms),
         "benchmark": {k: bench.get(k) for k in ("_room_id", "_open_time", "_score",
-                      "gmv_usd", "gpm", "order_rate", "ctr", "dwell_time", "roi")} if bench else None,
+                      "gmv_usd", "gpm", "order_rate", "ctr", "dwell_time", "roi", "_host")} if bench else None,
         "regression": reg, "time_slots": slots,
         "video": video_res, "insight": insight_res, "decay": decay, "script": script_res,
         "recent_room": recent.get("_room_id"),
     }
-    store.save_analysis(f"{host}_auto", result)
+    store.save_analysis(f"{store.analysis_key(host_list)}_auto", result)
     log("完成")
     return result
 

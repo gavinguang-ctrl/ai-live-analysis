@@ -98,3 +98,15 @@ def summary_kpis(rooms: list[dict]) -> dict:
         "total_views": total_views,
         "gpm_usd_overall": (total_gmv_usd / total_views * 1000) if total_views else 0.0,
     }
+
+
+def per_host_summary(rooms: list[dict]) -> list[dict]:
+    """按主播(_host)拆分，各主播一行 KPI，用于多主播横向对比。按总GMV降序。"""
+    by_host: dict[str, list[dict]] = defaultdict(list)
+    for r in rooms:
+        by_host[r.get("_host") or "unknown"].append(r)
+    out = []
+    for host, rs in by_host.items():
+        k = summary_kpis(rs)
+        out.append({"host": host, **k})
+    return sorted(out, key=lambda x: x.get("total_gmv_usd", 0), reverse=True)

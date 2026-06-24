@@ -16,7 +16,8 @@ proxies = None  # 众盟 API 国内可直连
 
 if mode == "按主播 id":
     col1, col2, col3 = st.columns([2, 1, 1])
-    host = col1.text_input("主播 id（hostName）", placeholder="如 sayangbody.vn")
+    host = col1.text_area("主播 id（hostName，可多个：每行一个或逗号分隔）",
+                          placeholder="如 sayangbody.vn\nwinfamily_rnv34", height=80)
     start = col2.date_input("开始日期", value=date.today() - timedelta(days=30))
     end = col3.date_input("结束日期", value=date.today())
 
@@ -27,32 +28,53 @@ if mode == "按主播 id":
     gran = cc3.selectbox("复盘粒度", ["week", "day", "month", "session"],
                          format_func=lambda x: {"week": "按周", "day": "按天", "month": "按月", "session": "按场次"}[x])
 
-    if st.button("🚀 开始抓取", type="primary", disabled=not host):
+    # 解析多个主播 id（换行或逗号分隔，去重保序）
+    host_ids = []
+    for chunk in (host or "").replace("，", ",").replace(",", "\n").splitlines():
+        h = chunk.strip()
+        if h and h not in host_ids:
+            host_ids.append(h)
+    multi = len(host_ids) > 1
+    if multi:
+        cc1.caption(f"将合并分析 {len(host_ids)} 个主播")
+
+    if st.button("🚀 开始抓取", type="primary", disabled=not host_ids):
         prog = st.empty()
-        rooms = fetch_host_rooms(host.strip(), start_date=str(start), end_date=str(end),
-                                 proxies=proxies, on_progress=lambda m: prog.info(m))
+        all_rooms = []
+        for h in host_ids:
+            prog.info(f"抓取主播 {h} …")
+            hr = fetch_host_rooms(h, start_date=str(start), end_date=str(end),
+                                  proxies=proxies, on_progress=lambda m: prog.info(m))
+            if hr:
+                store.save_host_rooms(h, hr)
+                for r in hr:
+                    if not r.get("_host"):
+                        r["_host"] = h
+                all_rooms.extend(hr)
+        rooms = all_rooms
         if rooms:
-            store.save_host_rooms(host.strip(), rooms)
-            prog.success(f"✅ 抓取并保存 {len(rooms)} 场")
+            got = sorted({r.get("_host", "") for r in rooms})
+            prog.success(f"✅ 抓取并保存 {len(rooms)} 场（{len(got)} 个主播：{', '.join(got)}）")
             n_rec = sum(1 for r in rooms if r.get("_oss_url"))
             n_script = sum(1 for r in rooms if r.get("_gemini_task_id"))
             st.write(f"其中 {n_rec} 场有录像、{n_script} 场有脚本")
             st.dataframe(
-                [{"开播": r.get("_open_time"), "时长": r.get("_duration"),
+                [{"主播": r.get("_host"), "开播": r.get("_open_time"), "时长": r.get("_duration"),
                   "场观": r.get("views"), "GMV$": round(r.get("gmv_usd", 0), 1),
                   "CTR": f"{r.get('ctr',0)*100:.1f}%", "停留s": round(r.get("dwell_time", 0)),
                   "录像": "✓" if r.get("_oss_url") else ""} for r in rooms],
                 use_container_width=True, hide_index=True,
             )
-            # ===== 抓取后自动综合复盘 =====
+            # ===== 抓取后自动综合复盘（多主播则合并）=====
             if auto:
                 st.divider()
-                st.subheader("🧠 自动综合复盘（Opus 4.8 + Gemini）")
+                title = "🧠 自动综合复盘（Opus 4.8 + Gemini）"
+                st.subheader(title + ("　·　多主播合并" if multi else ""))
                 aprog = st.empty()
                 import orchestrator
                 with st.spinner("自动分析中：benchmark → 录像/脚本/数据洞察 → 综合复盘…（约 1-3 分钟）"):
                     res = orchestrator.auto_analyze(
-                        host.strip(), granularity=gran,
+                        host_ids if multi else host_ids[0], granularity=gran,
                         deep_video=deep, deep_insight=deep, deep_script=deep,
                         on_progress=lambda m: aprog.info(m))
                 aprog.empty()

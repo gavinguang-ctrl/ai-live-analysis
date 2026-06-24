@@ -42,6 +42,31 @@ def load_host_rooms(host_name: str) -> list[dict]:
         return []
 
 
+def load_hosts_rooms(host_names: list[str]) -> list[dict]:
+    """合并加载多个主播的全部场次（用于多主播合并分析，如同一产品多主播）。
+    每条场次补上 _host 字段（若缺），便于后续按主播拆分对比。
+    """
+    merged = []
+    for h in host_names:
+        for r in load_host_rooms(h):
+            if not r.get("_host"):
+                r = {**r, "_host": h}
+            merged.append(r)
+    return sorted(merged, key=lambda r: r.get("_open_time", ""), reverse=True)
+
+
+def group_label(host_names: list[str]) -> str:
+    """多主播组的展示名：单个直接用主播名，多个用 ' + ' 连接。"""
+    names = [h for h in host_names if h]
+    return names[0] if len(names) == 1 else " + ".join(names)
+
+
+def analysis_key(host_names: list[str]) -> str:
+    """多主播组的缓存 key（顺序无关，去重排序后拼接），如 a__b_auto。"""
+    uniq = sorted(set(h for h in host_names if h))
+    return "__".join(uniq) if uniq else "unknown"
+
+
 def list_hosts() -> list[dict]:
     """列出所有已抓取的主播 [{host, count, updated_at}]。"""
     out = []

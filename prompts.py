@@ -166,6 +166,8 @@ SYNTH_USER_TMPL = """对主播 **{host}** 做综合复盘（{period_desc}）。
 ## 整体数据
 {kpi_block}
 
+{host_compare_block}
+
 ## 转化漏斗（含阈值诊断）
 {funnel_block}
 
