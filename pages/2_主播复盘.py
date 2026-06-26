@@ -17,14 +17,63 @@ if not hosts:
     st.stop()
 
 all_host_names = [h["host"] for h in hosts]
+groups = store.load_groups()
+
+# ===== 组合选择栏 =====
+gc1, gc2 = st.columns([2, 3])
+group_options = ["（不使用组合）"] + list(groups.keys())
+picked_group = gc1.selectbox("📁 主播组合", group_options,
+                             help="保存好的多主播组合，选中即自动填充下方主播；可在右侧增删改")
+
+# 当切换组合时，把组合成员同步进多选框（用 session_state 联动）
+if "rev_sel" not in st.session_state:
+    st.session_state.rev_sel = all_host_names[:1]
+if st.session_state.get("rev_last_group") != picked_group:
+    st.session_state.rev_last_group = picked_group
+    if picked_group != "（不使用组合）":
+        # 只保留仍存在的主播（成员可能已被删数据）
+        st.session_state.rev_sel = [h for h in groups[picked_group] if h in all_host_names]
+
 col1, col2, col3 = st.columns([2, 1, 1])
 selected = col1.multiselect(
     "选择主播（可多选合并分析，如同一产品多个主播）",
-    all_host_names, default=all_host_names[:1],
+    all_host_names, key="rev_sel",
     help="选 2 个及以上主播会把他们的场次合并分析，并做主播间横向对比")
 gran_label = col2.selectbox("时间粒度", ["按周", "按天", "按月", "按场次"])
 gran = {"按周": "week", "按天": "day", "按月": "month", "按场次": "session"}[gran_label]
 deep = col3.checkbox("深度(录像/截屏)", value=True)
+
+# ===== 组合管理（保存 / 更新 / 重命名 / 删除）=====
+with gc2:
+    with st.expander("💾 组合管理（保存当前选择 / 增删改）", expanded=False):
+        if selected:
+            st.caption(f"当前已选 {len(selected)} 个主播：{('、'.join(selected))[:60]}")
+        else:
+            st.caption("先在下方选好主播，再保存为组合")
+        is_existing = picked_group != "（不使用组合）"
+        default_name = picked_group if is_existing else ""
+        gname = st.text_input("组合名", value=default_name, key="grp_name",
+                              placeholder="如 蓝牙耳机A品")
+        b1, b2, b3 = st.columns(3)
+        save_label = "更新此组合" if (is_existing and gname.strip() == picked_group) else "保存为组合"
+        if b1.button(f"💾 {save_label}", type="primary", disabled=not (selected and gname.strip())):
+            if store.save_group(gname.strip(), selected):
+                st.session_state.rev_last_group = None  # 强制下次刷新同步
+                st.success(f"已保存组合「{gname.strip()}」（{len(selected)} 个主播）")
+                st.rerun()
+            else:
+                st.error("保存失败：组合名为空或没选主播")
+        if b2.button("✏️ 重命名", disabled=not (is_existing and gname.strip() and gname.strip() != picked_group)):
+            if store.rename_group(picked_group, gname.strip()):
+                st.success(f"已重命名为「{gname.strip()}」")
+                st.rerun()
+            else:
+                st.error("重命名失败：新名为空或已存在同名组合")
+        if b3.button("🗑️ 删除组合", disabled=not is_existing):
+            store.delete_group(picked_group)
+            st.session_state.rev_last_group = None
+            st.success(f"已删除组合「{picked_group}」")
+            st.rerun()
 
 if not selected:
     st.warning("请至少选择一个主播。")

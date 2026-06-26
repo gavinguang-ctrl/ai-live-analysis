@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 
-from config import ROOMS_DIR, ANALYSES_DIR
+from config import ROOMS_DIR, ANALYSES_DIR, DATA_DIR
 
 
 def _safe(name: str) -> str:
@@ -95,3 +95,68 @@ def load_analysis(key: str) -> dict | None:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return None
+
+
+# ===== 主播组合（同一产品的多主播分组，可命名/保存/复用/增删改）=====
+GROUPS_PATH = DATA_DIR / "groups.json"
+
+
+def load_groups() -> dict[str, list[str]]:
+    """读取所有组合 {组合名: [主播id, ...]}。"""
+    if not GROUPS_PATH.exists():
+        return {}
+    try:
+        data = json.loads(GROUPS_PATH.read_text(encoding="utf-8"))
+        # 兼容：值必须是 list
+        return {k: list(v) for k, v in data.items() if isinstance(v, list)}
+    except Exception:
+        return {}
+
+
+def _write_groups(groups: dict[str, list[str]]) -> None:
+    GROUPS_PATH.write_text(json.dumps(groups, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def save_group(name: str, host_names: list[str]) -> bool:
+    """新建或更新一个组合（同名覆盖）。去重保序。name 为空或无成员则不保存。"""
+    name = (name or "").strip()
+    members = []
+    for h in host_names:
+        h = (h or "").strip()
+        if h and h not in members:
+            members.append(h)
+    if not name or not members:
+        return False
+    groups = load_groups()
+    groups[name] = members
+    _write_groups(groups)
+    return True
+# APPEND_GROUPS_MARKER
+
+
+def rename_group(old_name: str, new_name: str) -> bool:
+    """重命名组合。新名为空或与他人重名(非自身)则失败。"""
+    old_name, new_name = (old_name or "").strip(), (new_name or "").strip()
+    groups = load_groups()
+    if old_name not in groups or not new_name:
+        return False
+    if new_name != old_name and new_name in groups:
+        return False  # 不覆盖已存在的其他组合
+    members = groups.pop(old_name)
+    groups[new_name] = members
+    _write_groups(groups)
+    return True
+
+
+def delete_group(name: str) -> bool:
+    groups = load_groups()
+    if name in groups:
+        groups.pop(name)
+        _write_groups(groups)
+        return True
+    return False
+
+
+def get_group(name: str) -> list[str]:
+    """取某组合的主播列表（不存在返回空）。"""
+    return load_groups().get(name, [])
