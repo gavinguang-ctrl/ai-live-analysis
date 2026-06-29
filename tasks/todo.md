@@ -24,7 +24,7 @@
 
 ## 分析框架（基于深度调研，写入 prompt/rubric）
 ### 转化漏斗（复盘主线）
-曝光 impressions → 进入率 ERR(views/impressions, ~2%基线) → 场观 views → 停留 AVD(目标破10min) → 商品点击 CTR → 下单率 orderRate(直播8-12%典型) → GMV / GPM
+曝光 impressions → 进入率 ERR(views/impressions, ~2%基线) → 场观 views → 停留 AVD(目标≥20秒) → 商品点击 CTR → 下单率 orderRate(健康4-5%) → GMV / GPM
 - **GPM = CTR × 转化率 × 客单价**：GPM 低必归因到三因子哪个拖累
 - 前30分钟 + 前3秒定生死
 

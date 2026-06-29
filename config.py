@@ -102,8 +102,8 @@ META_FIELDS = {
 DEFAULT_THRESHOLDS = {
     "enter_room_rate": {"name": "进入率(ERR)", "warn": 0.02, "bad": 0.01, "dir": "low", "fmt": "pct"},
     "ctr": {"name": "商品点击率", "warn": 0.03, "bad": 0.015, "dir": "low", "fmt": "pct"},
-    "dwell_time": {"name": "平均停留(秒)", "warn": 60, "bad": 30, "dir": "low", "fmt": "sec"},
-    "order_rate": {"name": "下单率", "warn": 0.08, "bad": 0.04, "dir": "low", "fmt": "pct"},
+    "dwell_time": {"name": "平均停留(秒)", "warn": 20, "bad": 10, "dir": "low", "fmt": "sec"},
+    "order_rate": {"name": "下单率", "warn": 0.04, "bad": 0.02, "dir": "low", "fmt": "pct"},
     "follow_rate": {"name": "转粉率", "warn": 0.02, "bad": 0.01, "dir": "low", "fmt": "pct"},
     "comment_rate": {"name": "评论率", "warn": 0.02, "bad": 0.01, "dir": "low", "fmt": "pct"},
     "roi": {"name": "投流ROI", "warn": 3.0, "bad": 1.5, "dir": "low", "fmt": "num"},
