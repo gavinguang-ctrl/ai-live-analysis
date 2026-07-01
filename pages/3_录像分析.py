@@ -52,6 +52,43 @@ if st.button("🎬 分析录像", type="primary"):
         (c3.warning if exposure.startswith(("高", "中")) else c3.success)(f"**AI暴露/限流风险**：{exposure}")
         c4.info(f"**TTS 拟真度**：{tts}")
 
+        # ===== 音画同步专项 =====
+        av = res.get("av_sync") or {}
+        if av:
+            st.subheader("🎯 音画同步专项")
+            _sev = av.get("severity")
+            osc, lsc = st.columns(2)
+            overall = av.get("overall_score")
+            osc.metric("音画同步综合分", f"{overall if overall is not None else '?'}/100",
+                       av.get("level", ""))
+            lip = av.get("lip_sync") or {}
+            lscore = lip.get("score")
+            lsc.metric("数字人口型吻合度", f"{lscore if lscore is not None else '?'}/100",
+                       lip.get("level") or "")
+            # 严重程度色带：0-1 绿，2 黄，3-4 红
+            band = (st.success if (_sev in (0, 1)) else st.warning if _sev == 2 else st.error)
+            band(f"不同步程度：**{av.get('level','未知')}**（severity {_sev}/4，分数越低越严重）")
+
+            cont = av.get("container") or {}
+            if cont.get("offset_ms") is not None:
+                off = cont["offset_ms"]
+                _dir = "音频滞后画面" if off > 0 else ("音频超前画面" if off < 0 else "起始对齐")
+                st.caption(f"客观测量(ffprobe容器)：音画布偏移 {off:+.0f}ms（{_dir}） · "
+                           f"判级 {cont.get('level','?')} · 时长漂移 {cont.get('duration_drift_ms')}ms")
+            else:
+                st.caption("客观测量：无法读取音轨偏移（可能无音轨或无 ffprobe），已只用视觉口型判断。")
+
+            with st.expander(f"数字人口型 / 音画错位观察 — {lscore if lscore is not None else '?'}/100",
+                             expanded=True):
+                for o in lip.get("observations", []):
+                    st.write("•", o)
+                if lip.get("comment"):
+                    st.write("↳", lip["comment"])
+            if lip.get("tuning"):
+                st.markdown("**同步调优方向**")
+                for t in lip.get("tuning", []):
+                    st.write("•", t)
+
         with st.expander(f"画面观察 — {res.get('visual',{}).get('score','?')}/10", expanded=True):
             for o in res.get("visual", {}).get("observations", []):
                 st.write("•", o)
@@ -63,7 +100,9 @@ if st.button("🎬 分析录像", type="primary"):
             for t in res.get("avatar_tuning", []):
                 st.write("•", t)
         st.info(res.get("overall_comment", ""))
-        st.caption(f"模型 {res.get('_model')} · {res.get('_frames')} 帧 · 转写 {'有' if res.get('_has_transcript') else '无'}")
+        st.caption(f"模型 {res.get('_model')} · {res.get('_frames')} 帧"
+                   f"{' + ' + str(res.get('_burst_frames')) + ' 口型帧' if res.get('_burst_frames') else ''}"
+                   f" · 转写 {'有' if res.get('_has_transcript') else '无'}")
 
 cached = store.load_analysis(f"{room['_room_id']}_video")
 if cached and not cached.get("error"):

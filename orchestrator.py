@@ -54,12 +54,23 @@ def _timeline_block(insight: dict, decay: dict) -> str:
 def _video_block(video: dict) -> str:
     if not video or video.get("error"):
         return ""
+    av = video.get("av_sync") or {}
+    av_line = ""
+    if av:
+        cont = av.get("container") or {}
+        lip = av.get("lip_sync") or {}
+        off = cont.get("offset_ms")
+        off_txt = (f"容器偏移{off:+.0f}ms" if off is not None else "容器偏移未测")
+        av_line = (f"- 🎯 音画同步: 综合{av.get('overall_score','?')}/100（{av.get('level','?')}）"
+                   f" · 数字人口型吻合{lip.get('score','?')}/100 · {off_txt}"
+                   + (f" — " + "；".join(lip.get('observations', [])[:2]) if lip.get('observations') else "") + "\n")
     return ("## 最近一场录像（画面/声音质量 · 数字人+TTS前提）\n"
             f"- 画面: {video.get('visual',{}).get('score','?')}/10 — "
             + "；".join(video.get('visual', {}).get('observations', [])[:2]) + "\n"
             f"- 声音: {video.get('audio',{}).get('score','?')}/10 — "
             + "；".join(video.get('audio', {}).get('observations', [])[:2]) + "\n"
-            f"- AI暴露/限流风险: {video.get('ai_exposure','?')}\n"
+            + av_line
+            + f"- AI暴露/限流风险: {video.get('ai_exposure','?')}\n"
             f"- TTS拟真度: {video.get('tts_naturalness','?')}\n"
             f"- 数字人可调优点: " + "；".join(video.get('avatar_tuning', [])[:3]) + "\n"
             f"- 总评: {video.get('overall_comment','')}")
